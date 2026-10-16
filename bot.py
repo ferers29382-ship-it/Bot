@@ -83,13 +83,17 @@ def is_admin(user_id: int | None) -> bool:
     return user_id is not None and user_id in ADMIN_IDS
 
 
-def main_menu() -> ReplyKeyboardMarkup:
+def main_menu(user_id: int | None = None) -> ReplyKeyboardMarkup:
+    keyboard = [
+        [KeyboardButton(text="👤 Мой профиль"), KeyboardButton(text="📋 Задания")],
+        [KeyboardButton(text="🤝 Рефералы")],
+        [KeyboardButton(text="⭐ Вывести"), KeyboardButton(text="💬 Поддержка")],
+    ]
+    if is_admin(user_id):
+        keyboard.append([KeyboardButton(text="🛠 Админ-панель")])
+
     return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="👤 Мой профиль"), KeyboardButton(text="📋 Задания")],
-            [KeyboardButton(text="🤝 Рефералы")],
-            [KeyboardButton(text="⭐ Вывести"), KeyboardButton(text="💬 Поддержка")],
-        ],
+        keyboard=keyboard,
         resize_keyboard=True,
         is_persistent=True,
     )
@@ -253,13 +257,13 @@ async def start_handler(message: Message, bot: Bot) -> None:
     )
 
     if is_admin(user.id):
-        await message.answer(welcome_text(), reply_markup=main_menu())
+        await message.answer(welcome_text(), reply_markup=main_menu(user.id))
         return
 
     subscribed = await is_member_of(bot, user.id, REQUIRED_CHANNEL)
     if subscribed is True:
         _, awarded_referrer, _ = await store.verify_user(user.id)
-        await message.answer(welcome_text(), reply_markup=main_menu())
+        await message.answer(welcome_text(), reply_markup=main_menu(user.id))
         if awarded_referrer:
             referred_name = f"@{user.username}" if user.username else user.first_name
             await notify_referrer(bot, awarded_referrer, referred_name)
@@ -281,7 +285,10 @@ async def my_id_handler(message: Message) -> None:
 @router.message(Command("cancel"))
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
-    await message.answer("Действие отменено.", reply_markup=main_menu())
+    await message.answer(
+        "Действие отменено.",
+        reply_markup=main_menu(message.from_user.id if message.from_user else None),
+    )
 
 
 @router.callback_query(F.data == "gate:verify")
@@ -312,7 +319,7 @@ async def verify_subscription_handler(callback: CallbackQuery, bot: Bot) -> None
     if callback.message:
         await callback.message.answer(
             "✅ Подписка подтверждена!",
-            reply_markup=main_menu(),
+            reply_markup=main_menu(callback.from_user.id),
         )
         await callback.message.answer(welcome_text())
 
@@ -357,6 +364,11 @@ async def admin_menu_handler(message: Message) -> None:
             ]
         ),
     )
+
+
+@router.message(F.text == "🛠 Админ-панель")
+async def admin_menu_button_handler(message: Message) -> None:
+    await admin_menu_handler(message)
 
 
 @router.message(F.text == "👤 Мой профиль")
@@ -867,7 +879,7 @@ async def fallback_handler(message: Message, bot: Bot) -> None:
         return
     await message.answer(
         "Выберите действие в меню ниже или отправьте /start.",
-        reply_markup=main_menu(),
+        reply_markup=main_menu(message.from_user.id if message.from_user else None),
     )
 
 
