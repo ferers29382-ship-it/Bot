@@ -20,6 +20,7 @@ from aiogram.types import (
     KeyboardButton,
     Message,
     ReplyKeyboardMarkup,
+    ReplyKeyboardRemove,
 )
 from dotenv import load_dotenv
 
@@ -127,6 +128,10 @@ def welcome_text() -> str:
 
 async def send_gate(message: Message) -> None:
     await message.answer(
+        "Функции бота откроются после подтверждения подписки.",
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer(
         "Чтобы пользоваться ботом, подпишитесь на канал, затем нажмите "
         "«Проверить подписку».",
         reply_markup=subscription_keyboard(),
@@ -175,7 +180,8 @@ async def access_message(message: Message, bot: Bot) -> bool:
     else:
         await message.answer(
             "Не удалось проверить подписку. Попросите администратора добавить бота "
-            "администратором канала и попробуйте ещё раз."
+            "администратором канала и попробуйте ещё раз.",
+            reply_markup=ReplyKeyboardRemove(),
         )
     return False
 
@@ -193,15 +199,18 @@ async def access_callback(callback: CallbackQuery, bot: Bot) -> bool:
     if subscribed is False:
         await callback.answer("Вы не подписаны на канал.", show_alert=True)
         if callback.message:
-            await callback.message.answer(
-                "Сначала подпишитесь на канал и нажмите «Проверить подписку».",
-                reply_markup=subscription_keyboard(),
-            )
+            await send_gate(callback.message)
     else:
         await callback.answer(
             "Не удалось проверить подписку. Сообщите администратору бота.",
             show_alert=True,
         )
+        if callback.message:
+            await callback.message.answer(
+                "Не удалось проверить подписку. Попросите администратора "
+                "добавить бота администратором канала.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
     return False
 
 
@@ -272,7 +281,8 @@ async def start_handler(message: Message, bot: Bot) -> None:
     else:
         await message.answer(
             "Не удалось проверить подписку. Администратор должен добавить бота "
-            "в канал как администратора."
+            "в канал как администратора.",
+            reply_markup=ReplyKeyboardRemove(),
         )
 
 
@@ -297,16 +307,19 @@ async def verify_subscription_handler(callback: CallbackQuery, bot: Bot) -> None
     if subscribed is False:
         await callback.answer("Вы не подписаны на канал.", show_alert=True)
         if callback.message:
-            await callback.message.answer(
-                "Вы не подписаны на канал. Подпишитесь и нажмите кнопку проверки.",
-                reply_markup=subscription_keyboard(),
-            )
+            await send_gate(callback.message)
         return
     if subscribed is None:
         await callback.answer(
             "Не удалось проверить подписку. Сообщите администратору бота.",
             show_alert=True,
         )
+        if callback.message:
+            await callback.message.answer(
+                "Не удалось проверить подписку. Попросите администратора "
+                "добавить бота администратором канала.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
         return
 
     await ensure_user_record(
