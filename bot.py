@@ -488,7 +488,7 @@ async def open_task_handler(callback: CallbackQuery, bot: Bot) -> None:
 
     await callback.answer()
     if callback.message:
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"Подпишитесь на канал задания. После проверки будет начислено "
             f"{task['reward']} ⭐.",
             reply_markup=InlineKeyboardMarkup(
@@ -535,9 +535,19 @@ async def check_task_handler(callback: CallbackQuery, bot: Bot) -> None:
     if status == "completed":
         await callback.answer("Подписка подтверждена!")
         if callback.message:
-            await callback.message.answer(f"✅ Готово! На баланс начислено {reward} ⭐.")
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.edit_text(
+                f"✅ Задание выполнено. На баланс начислено {reward} ⭐.",
+                reply_markup=None,
+            )
     elif status == "already_completed":
         await callback.answer("За это задание награда уже получена.", show_alert=True)
+        if callback.message:
+            await callback.message.edit_reply_markup(reply_markup=None)
+            await callback.message.edit_text(
+                "✅ Вы уже выполнили это задание.",
+                reply_markup=None,
+            )
     else:
         await callback.answer("Задание недоступно.", show_alert=True)
 
@@ -624,8 +634,8 @@ async def withdrawal_amount_handler(
 
     await state.clear()
     await message.answer(
-        f"✅ Заявка #{request_id} на {amount} ⭐ отправлена администратору. "
-        "Сумма временно списана с баланса."
+        f"✅ Заявка на вывод #{request_id} на {amount} ⭐ принята и находится "
+        "на рассмотрении. Сумма временно зарезервирована до решения администратора."
     )
 
 

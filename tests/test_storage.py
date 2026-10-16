@@ -41,6 +41,30 @@ class StoreTests(unittest.IsolatedAsyncioTestCase):
         user = await self.store.get_user(300)
         self.assertEqual(user["balance"], 12)
 
+    async def test_completed_task_disappears_only_for_that_user(self) -> None:
+        await self.store.register_user(301, None, "First user", None)
+        await self.store.register_user(302, None, "Second user", None)
+        task_id = await self.store.create_task(
+            "@samplechannel", "https://t.me/samplechannel", 12
+        )
+
+        self.assertEqual(
+            [task["task_id"] for task in await self.store.list_available_tasks(301)],
+            [task_id],
+        )
+        self.assertEqual(
+            [task["task_id"] for task in await self.store.list_available_tasks(302)],
+            [task_id],
+        )
+
+        await self.store.complete_task(301, task_id)
+
+        self.assertEqual(await self.store.list_available_tasks(301), [])
+        self.assertEqual(
+            [task["task_id"] for task in await self.store.list_available_tasks(302)],
+            [task_id],
+        )
+
     async def test_withdrawal_rejection_refunds_and_paid_request_does_not(self) -> None:
         await self.store.register_user(400, None, "Withdrawal user", None)
         task_id = await self.store.create_task(
